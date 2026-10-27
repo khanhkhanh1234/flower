@@ -1,5 +1,6 @@
 // Parse customer chat messages (text + screenshots) into an order draft.
 // Uses Gemini when an API key is configured, otherwise a heuristic text parser.
+import { calcTotals } from './calc.js';
 
 export function stripVN(s) {
   return String(s || '')
@@ -202,12 +203,16 @@ export function finalizeDraft(d) {
   const itemSum = items.reduce((s, it) => s + (Number(it.unit_price) || 0) * (Number(it.qty) || 1), 0);
   const price = Number(d.price) > 0 ? Math.round(Number(d.price)) : itemSum || null;
   const ship = Number(d.ship_fee) > 0 ? Math.round(Number(d.ship_fee)) : null;
+  const discount_type = d.discount_type === 'percent' ? 'percent' : 'vnd';
+  const discount = Number(d.discount) > 0 ? Math.round(Math.min(Number(d.discount), discount_type === 'percent' ? 100 : Infinity)) : null;
+  const extra = Number(d.extra_cost) > 0 ? Math.round(Number(d.extra_cost)) : null;
+  const { total } = calcTotals({ price, ship_fee: ship, discount, discount_type, extra_cost: extra });
   let status = ['none', 'partial', 'full'].includes(d.deposit_status) ? d.deposit_status : 'none';
   let amount = Number(d.deposit_amount) > 0 ? Math.round(Number(d.deposit_amount)) : null;
   const pct = Number(d.deposit_percent);
-  if (!amount && pct > 0) amount = Math.round(((price || 0) + (ship || 0)) * Math.min(100, pct) / 100);
+  if (!amount && pct > 0) amount = Math.round((total * Math.min(100, pct)) / 100);
   if (status === 'none' && amount) status = 'partial';
-  if (status === 'full') amount = (price || 0) + (ship || 0);
+  if (status === 'full') amount = total;
   const s = (v) => (v == null ? '' : String(v).trim());
   const out = {
     order_for: d.order_for === 'gift' || (s(d.recipient_name) && s(d.recipient_name) !== s(d.customer_name)) ? 'gift' : 'self',
@@ -220,6 +225,9 @@ export function finalizeDraft(d) {
     delivery_time: /^\d{2}:\d{2}$/.test(s(d.delivery_time)) ? s(d.delivery_time) : '',
     price,
     ship_fee: ship,
+    discount,
+    discount_type,
+    extra_cost: extra,
     deposit_status: status,
     deposit_amount: amount,
     items,
@@ -246,9 +254,16 @@ export function buildReply(d) {
     const [y, m, day] = d.delivery_date.split('-');
     lines.push(`- Ngày giao: ${day}/${m}/${y}${d.delivery_time ? ` lúc ${d.delivery_time}` : ''}`);
   }
-  const total = (d.price || 0) + (d.ship_fee || 0);
-  if (d.price) lines.push(`- Tiền hoa: ${fmt(d.price)}${d.ship_fee ? ` + ship ${fmt(d.ship_fee)}` : ''} = ${fmt(total)}`);
-  if (d.deposit_amount) lines.push(`- Cọc: ${fmt(d.deposit_amount)}, còn lại ${fmt(Math.max(0, total - d.deposit_amount))}`);
+  const t = calcTotals(d);
+  if (d.price) {
+    const parts = [`${fmt(d.price)}`];
+    if (d.extra_cost) parts.push(`phụ phí ${fmt(d.extra_cost)}`);
+    if (d.ship_fee) parts.push(`ship ${fmt(d.ship_fee)}`);
+    let line = `- Tiền hoa: ${parts.join(' + ')}`;
+    if (t.discount) line += ` − giảm ${d.discount_type === 'percent' ? `${d.discount}% (${fmt(t.discount)})` : fmt(t.discount)}`;
+    lines.push(`${line} = ${fmt(t.total)}`);
+  }
+  if (t.deposit) lines.push(`- Cọc: ${fmt(t.deposit)}, còn lại ${fmt(t.remaining)}`);
   if (d.note) lines.push(`- Lời nhắn: ${d.note}`);
   lines.push('Mình kiểm tra giúp shop nhé, cảm ơn mình ạ!');
   return lines.join('\n');
@@ -259,8 +274,8 @@ Hôm nay là ${today}. Danh sách mẫu hoa của tiệm (tên - giá VNĐ):
 ${flowers.map((f) => `- ${f.name} - ${f.price}`).join('\n') || '(chưa có)'}
 
 Trả về DUY NHẤT JSON với các khóa:
-{"order_for":"self"|"gift","customer_name":"","customer_phone":"","recipient_name":"","recipient_phone":"","address":"","delivery_date":"YYYY-MM-DD","delivery_time":"HH:mm","price":number|null,"ship_fee":number|null,"deposit_status":"none"|"partial"|"full","deposit_amount":number|null,"deposit_percent":number|null,"items":[{"name":"","qty":number,"unit_price":number}],"product_summary":"","note":""}
-Quy tắc: tiền tính bằng VNĐ (1tr1 = 1100000, 50k = 50000). "price" là tiền hoa khách được báo (không gồm ship). Nếu khách đặt tặng người khác thì order_for="gift", "address" là địa chỉ người nhận. Nếu cọc theo phần trăm thì điền deposit_percent. Ưu tiên tên mẫu hoa trong danh sách nếu khớp. "note" là lời nhắn/ghi chú thiệp. "product_summary" mô tả ngắn hoa khách đặt. Trường không rõ để chuỗi rỗng hoặc null, KHÔNG tự đoán ngày giao từ nội dung lời chúc.`;
+{"order_for":"self"|"gift","customer_name":"","customer_phone":"","recipient_name":"","recipient_phone":"","address":"","delivery_date":"YYYY-MM-DD","delivery_time":"HH:mm","price":number|null,"ship_fee":number|null,"discount":number|null,"discount_type":"vnd"|"percent","extra_cost":number|null,"deposit_status":"none"|"partial"|"full","deposit_amount":number|null,"deposit_percent":number|null,"items":[{"name":"","qty":number,"unit_price":number}],"product_summary":"","note":""}
+Quy tắc: tiền tính bằng VNĐ (1tr1 = 1100000, 50k = 50000). "price" là tiền hoa khách được báo TRƯỚC giảm giá (không gồm ship, không gồm phụ phí). Giảm giá/chiết khấu ghi vào "discount" (giảm theo % thì discount_type="percent", discount là số %). Phụ phí cộng thêm (thiệp, tăng size, thêm hoa…) ghi vào "extra_cost". "freeship" thì ship_fee=0. Tiền khách đã chuyển khoản/ck trước là tiền cọc. Nếu khách đặt tặng người khác thì order_for="gift", "address" là địa chỉ người nhận. Nếu cọc theo phần trăm thì điền deposit_percent. Ưu tiên tên mẫu hoa trong danh sách nếu khớp. "note" là lời nhắn/ghi chú thiệp. "product_summary" mô tả ngắn hoa khách đặt. Trường không rõ để chuỗi rỗng hoặc null, KHÔNG tự đoán ngày giao từ nội dung lời chúc.`;
 
 export async function geminiParse({ apiKey, model, messages, flowers, today, fetchImpl = fetch, timeoutMs = 60000 }) {
   const parts = [{ text: PROMPT(flowers, today) }];

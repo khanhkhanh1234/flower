@@ -158,6 +158,9 @@ export default function OrderForm() {
         // Keep the price quoted to the customer; fall back to the sum of flower models.
         price: d.price || (d.items?.length ? itemSum(items) : cur.price),
         ship_fee: d.ship_fee ?? cur.ship_fee,
+        discount: d.discount ?? cur.discount,
+        discount_type: d.discount ? d.discount_type : cur.discount_type,
+        extra_cost: d.extra_cost ?? cur.extra_cost,
         deposit_status: d.deposit_status !== 'none' ? d.deposit_status : cur.deposit_status,
         deposit_amount: d.deposit_amount ?? cur.deposit_amount,
         product_summary: d.product_summary || cur.product_summary,

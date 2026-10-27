@@ -189,6 +189,8 @@ function AiResult({ d, onDiscard }) {
     ['Mô tả hoa', d.product_summary],
     ['Giá', d.price ? vnd(d.price) : ''],
     ['Tiền ship', d.ship_fee ? vnd(d.ship_fee) : ''],
+    d.extra_cost && ['Phụ phí', vnd(d.extra_cost)],
+    d.discount && ['Chiết khấu', d.discount_type === 'percent' ? `${d.discount}%` : vnd(d.discount)],
     ['Cọc', d.deposit_status !== 'none' ? `${DEPOSIT[d.deposit_status]} · ${vnd(d.deposit_amount)}` : ''],
     ['Lời nhắn', d.note],
   ].filter(Boolean);

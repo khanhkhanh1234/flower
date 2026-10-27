@@ -759,8 +759,8 @@ export function createApp({ db, storage, clientDist, geminiKey = '', fetchImpl =
     let source = 'heuristic';
     let warning = '';
     if (apiKey) {
-      // Busy/slow models are common; fall back to the fast lite model before giving up.
-      const models = [...new Set([model, DEFAULT_MODEL])];
+      // Busy/slow models are common; fall back to the fast lite model (retried once) before giving up.
+      const models = [...(model !== DEFAULT_MODEL ? [model] : []), DEFAULT_MODEL, DEFAULT_MODEL];
       for (const [i, m] of models.entries()) {
         try {
           raw = await geminiParse({
@@ -770,7 +770,7 @@ export function createApp({ db, storage, clientDist, geminiKey = '', fetchImpl =
             flowers,
             today: todayStr,
             fetchImpl,
-            timeoutMs: i < models.length - 1 ? 25000 : 45000,
+            timeoutMs: i < models.length - 1 ? 25000 : 30000,
           });
           source = 'gemini';
           break;
