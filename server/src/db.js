@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 /** Shop time zone: timestamps are stored as local 'YYYY-MM-DD HH:MM:SS' text. */
 export const TZ = 'Asia/Ho_Chi_Minh';
@@ -166,7 +167,9 @@ async function openPostgres(url) {
   // TLS is configured below; drop ssl* URL params so they can't override it.
   const u = new URL(url);
   for (const k of [...u.searchParams.keys()]) if (k.startsWith('ssl')) u.searchParams.delete(k);
-  const ca = readCa(process.env.DATABASE_CA);
+  // Supabase signs its Postgres certs with its own root CA (bundled in server/certs).
+  const isSupabase = /\.supabase\.(com|co)$/.test(u.hostname);
+  const ca = readCa(process.env.DATABASE_CA || (isSupabase ? fileURLToPath(new URL('../certs/supabase-ca.crt', import.meta.url)) : ''));
   const ssl = process.env.DATABASE_SSL === 'off' ? false : { rejectUnauthorized: true, ...(ca ? { ca } : {}) };
   const pool = new pg.Pool({ connectionString: u.toString(), ssl, max: 5, idleTimeoutMillis: 30000 });
   pool.on('error', (e) => console.error('Lỗi kết nối DB:', e.message));
