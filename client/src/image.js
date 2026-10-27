@@ -23,8 +23,13 @@ export const blobToDataURL = (blob) =>
     r.readAsDataURL(blob);
   });
 
+// Decode manually: fetch(data:) is blocked by our CSP (connect-src 'self').
 export async function dataURLToBlob(url) {
-  return (await fetch(url)).blob();
+  const [head, b64] = url.split(',', 2);
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: /^data:([^;]+)/.exec(head)?.[1] || 'application/octet-stream' });
 }
 
 /** Image files from a paste / drop event. */
