@@ -182,7 +182,7 @@ export function createApp({ db, storage, clientDist, geminiKey = '', fetchImpl =
   app.get('/api/settings', async (req, res) => {
     res.json({
       ai_configured: Boolean((await getSetting('gemini_api_key')) || geminiKey),
-      gemini_model: (await getSetting('gemini_model')) || 'gemini-2.5-flash',
+      gemini_model: (await getSetting('gemini_model')) || 'gemini-flash-latest',
     });
   });
   app.put('/api/settings', requireOwner, async (req, res) => {
@@ -752,7 +752,7 @@ export function createApp({ db, storage, clientDist, geminiKey = '', fetchImpl =
     const now = today();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const apiKey = (await getSetting('gemini_api_key')) || geminiKey;
-    const model = (await getSetting('gemini_model')) || 'gemini-2.5-flash';
+    const model = (await getSetting('gemini_model')) || 'gemini-flash-latest';
     const text = messages.map((m) => m.text).filter(Boolean).join('\n');
     let raw;
     let source = 'heuristic';
