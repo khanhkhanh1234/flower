@@ -262,7 +262,7 @@ Trả về DUY NHẤT JSON với các khóa:
 {"order_for":"self"|"gift","customer_name":"","customer_phone":"","recipient_name":"","recipient_phone":"","address":"","delivery_date":"YYYY-MM-DD","delivery_time":"HH:mm","price":number|null,"ship_fee":number|null,"deposit_status":"none"|"partial"|"full","deposit_amount":number|null,"deposit_percent":number|null,"items":[{"name":"","qty":number,"unit_price":number}],"product_summary":"","note":""}
 Quy tắc: tiền tính bằng VNĐ (1tr1 = 1100000, 50k = 50000). "price" là tiền hoa khách được báo (không gồm ship). Nếu khách đặt tặng người khác thì order_for="gift", "address" là địa chỉ người nhận. Nếu cọc theo phần trăm thì điền deposit_percent. Ưu tiên tên mẫu hoa trong danh sách nếu khớp. "note" là lời nhắn/ghi chú thiệp. "product_summary" mô tả ngắn hoa khách đặt. Trường không rõ để chuỗi rỗng hoặc null, KHÔNG tự đoán ngày giao từ nội dung lời chúc.`;
 
-export async function geminiParse({ apiKey, model, messages, flowers, today, fetchImpl = fetch }) {
+export async function geminiParse({ apiKey, model, messages, flowers, today, fetchImpl = fetch, timeoutMs = 60000 }) {
   const parts = [{ text: PROMPT(flowers, today) }];
   for (const m of messages) {
     if (m.text) parts.push({ text: `Tin nhắn khách: ${m.text}` });
@@ -279,7 +279,7 @@ export async function geminiParse({ apiKey, model, messages, flowers, today, fet
       contents: [{ role: 'user', parts }],
       generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
     }),
-    signal: AbortSignal.timeout(60000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) {
     const body = await res.text().catch(() => '');

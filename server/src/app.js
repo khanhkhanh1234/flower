@@ -21,6 +21,7 @@ import { calcTotals, money } from './calc.js';
 export const STATUSES = ['pending', 'making', 'delivering', 'done', 'cancelled'];
 const DEPOSIT = ['none', 'partial', 'full'];
 const MAX_IMAGES = 10;
+const DEFAULT_MODEL = 'gemini-flash-lite-latest';
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -182,7 +183,7 @@ export function createApp({ db, storage, clientDist, geminiKey = '', fetchImpl =
   app.get('/api/settings', async (req, res) => {
     res.json({
       ai_configured: Boolean((await getSetting('gemini_api_key')) || geminiKey),
-      gemini_model: (await getSetting('gemini_model')) || 'gemini-flash-latest',
+      gemini_model: (await getSetting('gemini_model')) || DEFAULT_MODEL,
     });
   });
   app.put('/api/settings', requireOwner, async (req, res) => {
@@ -752,25 +753,33 @@ export function createApp({ db, storage, clientDist, geminiKey = '', fetchImpl =
     const now = today();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const apiKey = (await getSetting('gemini_api_key')) || geminiKey;
-    const model = (await getSetting('gemini_model')) || 'gemini-flash-latest';
+    const model = (await getSetting('gemini_model')) || DEFAULT_MODEL;
     const text = messages.map((m) => m.text).filter(Boolean).join('\n');
     let raw;
     let source = 'heuristic';
     let warning = '';
     if (apiKey) {
-      try {
-        raw = await geminiParse({
-          apiKey,
-          model,
-          messages,
-          flowers,
-          today: todayStr,
-          fetchImpl,
-        });
-        source = 'gemini';
-      } catch (e) {
-        warning = `AI lỗi, dùng bộ đọc cơ bản: ${e.message}`;
+      // Busy/slow models are common; fall back to the fast lite model before giving up.
+      const models = [...new Set([model, DEFAULT_MODEL])];
+      for (const [i, m] of models.entries()) {
+        try {
+          raw = await geminiParse({
+            apiKey,
+            model: m,
+            messages,
+            flowers,
+            today: todayStr,
+            fetchImpl,
+            timeoutMs: i < models.length - 1 ? 25000 : 45000,
+          });
+          source = 'gemini';
+          break;
+        } catch (e) {
+          console.error(`Gemini ${m}:`, e.message.slice(0, 200));
+          warning = `AI lỗi, dùng bộ đọc cơ bản: ${e.message}`;
+        }
       }
+      if (raw) warning = '';
     } else if (messages.some((m) => m.images.length) && !text) {
       warning = 'Chưa cấu hình Gemini API key nên chưa đọc được ảnh — hãy dán thêm nội dung chữ.';
     }
