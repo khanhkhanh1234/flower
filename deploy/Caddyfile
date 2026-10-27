@@ -1,0 +1,6 @@
+# Thay ten-tiem.duckdns.org bằng tên miền của bạn.
+# Caddy tự xin và gia hạn chứng chỉ HTTPS (Let's Encrypt).
+ten-tiem.duckdns.org {
+	encode gzip
+	reverse_proxy 127.0.0.1:3000
+}

@@ -1,0 +1,20 @@
+# Chép vào /etc/systemd/system/floral-muse.service, sửa User/đường dẫn rồi:
+#   sudo systemctl daemon-reload && sudo systemctl enable --now floral-muse
+[Unit]
+Description=Floral Muse
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/Flower-Website
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=3000
+Environment=TRUST_PROXY=loopback
+Environment=DATA_DIR=/home/ubuntu/floral-data
+ExecStart=/usr/bin/node server/src/index.js
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

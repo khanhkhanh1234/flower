@@ -1,0 +1,18 @@
+{
+  "name": "floral-muse-server",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/index.js",
+    "dev": "node --env-file-if-exists=.env --watch src/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.12",
+    "express": "^5.1.0",
+    "pg": "^8.23.1"
+  }
+}
