@@ -16,6 +16,10 @@ export default function Today() {
   const setDate = (d) => setParams(d === today ? {} : { date: d }, { replace: true });
   const orders = useLoad(() => api(`/orders?date=${date}`), [date]);
   const stats = useLoad(() => api(`/stats/day?date=${date}`), [date]);
+  // Orders after this day, so an empty day can point to the next one that has orders.
+  const upcoming = useLoad(() => api(`/orders?from=${addDays(date, 1)}`), [date]);
+  const next = (upcoming.data || []).filter((o) => o.status !== 'cancelled').map((o) => o.delivery_date).sort()[0];
+  const nextCount = next ? upcoming.data.filter((o) => o.delivery_date === next && o.status !== 'cancelled').length : 0;
 
   const list = (orders.data || []).filter((o) => !status || o.status === status);
   const isToday = date === today;
@@ -77,6 +81,11 @@ export default function Today() {
         </div>
       ) : (
         <Empty icon="flower" title={status ? `Không có đơn "${STATUS[status].label}"` : isToday ? 'Chưa có đơn hôm nay' : `Chưa có đơn ngày ${fmtDate(date)}`}>
+          {!status && next && (
+            <button type="button" className="btn btn-soft" onClick={() => setDate(next)}>
+              Đơn sắp tới: {weekday(next)}, {fmtDate(next)} · {nextCount} đơn <Icon name="right" size={16} />
+            </button>
+          )}
           <Link to={`/orders/new?date=${date}`} className="btn btn-primary">
             <Icon name="plus" size={18} /> Thêm đơn
           </Link>
