@@ -1,8 +1,9 @@
 // Order money calculations (mirrored in client/src/calc.js).
 
+// Capped below the INTEGER column limit (2^31-1).
 export const money = (v) => {
   const n = Math.round(Number(v));
-  return Number.isFinite(n) && n > 0 ? Math.min(n, 1e12) : 0;
+  return Number.isFinite(n) && n > 0 ? Math.min(n, 1e9) : 0;
 };
 
 export function calcTotals(o) {

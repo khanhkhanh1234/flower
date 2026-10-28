@@ -7,7 +7,7 @@ import { dataURLToBlob } from '../image.js';
 import AiModal from '../components/AiModal.jsx';
 import PaymentSummary from '../components/PaymentSummary.jsx';
 import { CustomerPicker, FlowerPicker, ImageDrop } from '../components/pickers.jsx';
-import { ErrorBox, Field, Loading, MoneyInput, Segmented, useLoad, useToast } from '../components/ui.jsx';
+import { ErrorBox, Field, Loading, MoneyInput, Segmented, confirmAsk, useLoad, useToast } from '../components/ui.jsx';
 
 const MAX_IMAGES = 10;
 const summarize = (items) => items.map((i) => `${i.qty} ${i.name}`).join(', ');
@@ -47,6 +47,7 @@ export default function OrderForm() {
   const toast = useToast();
   const [f, setF] = useState(null);
   const [isDraft, setIsDraft] = useState(false);
+  const [version, setVersion] = useState(null);
   const [images, setImages] = useState([]); // {key, id?, url, blob?}
   const [removed, setRemoved] = useState([]);
   const [aiOpen, setAiOpen] = useState(false);
@@ -67,6 +68,7 @@ export default function OrderForm() {
           const o = await api(`/orders/${id}`);
           if (!alive) return;
           setIsDraft(o.is_draft);
+          setVersion(o.version ?? null);
           setF({
             ...blank(''),
             ...Object.fromEntries(Object.keys(blank('')).map((k) => [k, o[k] ?? blank('')[k]])),
@@ -199,6 +201,7 @@ export default function OrderForm() {
         staff_id: f.staff_id || null,
         items: f.items.map(({ flower_id, name, unit_price, qty }) => ({ flower_id, name, unit_price, qty })),
         is_draft: asDraft,
+        version: id ? version : undefined,
       };
       if (id && !isDraft) delete body.is_draft;
       const o = id ? await api(`/orders/${id}`, { method: 'PUT', body }) : await api('/orders', { method: 'POST', body });
@@ -209,7 +212,10 @@ export default function OrderForm() {
       toast(asDraft ? 'Đã lưu đơn nháp' : id && !isDraft ? 'Đã lưu thay đổi' : 'Đã tạo đơn');
       navigate(asDraft ? '/drafts' : `/orders/${o.id}`, { replace: true });
     } catch (e) {
-      toast(e.message, 'error');
+      if (e.status === 409) {
+        if (confirmAsk(`${e.message}\n\nMở bản mới nhất? (Thay đổi bạn vừa nhập sẽ không được lưu)`))
+          navigate(isDraft ? '/drafts' : `/orders/${id}`, { replace: true });
+      } else toast(e.message, 'error');
     } finally {
       setSaving(false);
     }

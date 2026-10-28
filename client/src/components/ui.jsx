@@ -15,6 +15,12 @@ export function useLoad(fn, deps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
   useEffect(reload, [reload]);
+  // Phones keep tabs open for hours: refresh when the app comes back to the foreground.
+  useEffect(() => {
+    const onShow = () => document.visibilityState === 'visible' && reload();
+    document.addEventListener('visibilitychange', onShow);
+    return () => document.removeEventListener('visibilitychange', onShow);
+  }, [reload]);
   return { ...state, reload, setData: (data) => setState((s) => ({ ...s, data })) };
 }
 

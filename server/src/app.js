@@ -33,12 +33,20 @@ const bad = (msg) => new HttpError(400, msg);
 const notFound = (msg = 'Không tìm thấy') => new HttpError(404, msg);
 
 const str = (v, max = 500) => (v == null ? '' : String(v).trim().slice(0, max));
-const isoDate = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v : '');
-const hhmm = (v) => (/^\d{2}:\d{2}$/.test(v || '') ? v : '');
+const isoDate = (v) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v || '')) return '';
+  const d = new Date(`${v}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v ? v : '';
+};
+const hhmm = (v) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(v || '') ? v : '');
 const id = (v) => {
   const n = Number(v);
-  return Number.isSafeInteger(n) && n > 0 ? n : null;
+  return Number.isSafeInteger(n) && n > 0 && n <= 2147483647 ? n : null;
 };
+const STATUS_VI = { pending: 'Chờ xử lý', making: 'Đang làm', delivering: 'Đang giao', done: 'Đã giao', cancelled: 'Đã hủy' };
+/** 'YYYY-MM-DD HH:MM:SS' -> 'HH:MM DD/MM' */
+const shortTime = (ts) => (ts ? `${ts.slice(11, 16)} ${ts.slice(8, 10)}/${ts.slice(5, 7)}` : '');
+const who = (email, me) => (!email ? 'Người khác' : email === me ? 'Bạn (ở máy khác)' : email);
 const likeEscape = (s) => `%${s.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 
 const IMAGE_SIG = [
@@ -475,6 +483,8 @@ export function createApp({ db, storage, clientDist, geminiKey = '', fetchImpl =
     if (o.customer_id) return o.customer_id;
     if (!o.customer_name) return null;
     if (o.customer_phone) {
+      // Serialize concurrent orders for the same new phone so only one customer is created.
+      await t.get('SELECT pg_advisory_xact_lock(hashtext(?))', `customer:${o.customer_phone}`);
       const c = await t.get('SELECT id FROM customers WHERE phone = ? AND deleted_at IS NULL ORDER BY id LIMIT 1', o.customer_phone);
       if (c) return c.id;
     }
@@ -545,7 +555,8 @@ export function createApp({ db, storage, clientDist, geminiKey = '', fetchImpl =
             : 'o.delivery_date DESC, o.id DESC';
     const rows = await db.all(
       `SELECT o.*, (SELECT path FROM order_images WHERE order_id = o.id ORDER BY id LIMIT 1) AS thumb,
-              (SELECT COUNT(*) FROM order_images WHERE order_id = o.id) AS image_count
+              (SELECT COUNT(*) FROM order_images WHERE order_id = o.id) AS image_count,
+              (SELECT by_user FROM order_events WHERE order_id = o.id ORDER BY id DESC LIMIT 1) AS status_by
        FROM orders o WHERE ${where.join(' AND ')} ORDER BY ${order} LIMIT 500`,
       ...args,
     );
@@ -564,9 +575,10 @@ export function createApp({ db, storage, clientDist, geminiKey = '', fetchImpl =
     const oid = await db.tx(async (t) => {
       if (!draft) o.customer_id = await ensureCustomer(t, o);
       const r = await t.get(
-        `INSERT INTO orders (${ORDER_COLS.join(', ')}, is_draft, created_by) VALUES (${ORDER_COLS.map(() => '?').join(', ')}, ?, ?) RETURNING id`,
+        `INSERT INTO orders (${ORDER_COLS.join(', ')}, is_draft, created_by, updated_by) VALUES (${ORDER_COLS.map(() => '?').join(', ')}, ?, ?, ?) RETURNING id`,
         ...ORDER_COLS.map((c) => o[c]),
         draft ? 1 : 0,
+        req.user.email,
         req.user.email,
       );
       await writeItems(t, r.id, items);
@@ -583,12 +595,24 @@ export function createApp({ db, storage, clientDist, geminiKey = '', fetchImpl =
     // A draft stays a draft unless explicitly published; a real order can't go back to draft.
     const draft = Boolean(cur.is_draft) && req.body?.is_draft !== false;
     const { o, items } = await normOrder(req.body, { draft });
+    // Optimistic locking: the client sends the version it loaded; a mismatch means someone saved in between.
+    const version = Number.isInteger(req.body?.version) ? req.body.version : null;
     await db.tx(async (t) => {
+      const now = await t.get('SELECT is_draft, version, updated_by, updated_at FROM orders WHERE id = ? AND deleted_at IS NULL FOR UPDATE', oid);
+      if (!now) throw notFound('Đơn vừa bị xóa');
+      if (cur.is_draft && !now.is_draft)
+        throw new HttpError(409, `Đơn nháp này đã được ${who(now.updated_by, req.user.email)} tạo thành đơn lúc ${shortTime(now.updated_at)}`);
+      if (version !== null && version !== now.version)
+        throw new HttpError(
+          409,
+          `${who(now.updated_by, req.user.email)} vừa sửa đơn này lúc ${shortTime(now.updated_at)}. Mở lại đơn để xem bản mới nhất rồi sửa lại.`,
+        );
       if (!draft) o.customer_id = await ensureCustomer(t, o);
       await t.run(
-        `UPDATE orders SET ${ORDER_COLS.map((c) => `${c} = ?`).join(', ')}, is_draft = ?, updated_at = ${NOW} WHERE id = ?`,
+        `UPDATE orders SET ${ORDER_COLS.map((c) => `${c} = ?`).join(', ')}, is_draft = ?, version = version + 1, updated_by = ?, updated_at = ${NOW} WHERE id = ?`,
         ...ORDER_COLS.map((c) => o[c]),
         draft ? 1 : 0,
+        req.user.email,
         oid,
       );
       if (cur.is_draft && !draft) {
@@ -604,14 +628,22 @@ export function createApp({ db, storage, clientDist, geminiKey = '', fetchImpl =
     const oid = id(req.params.id);
     const status = req.body?.status;
     if (!STATUSES.includes(status)) throw bad('Trạng thái không hợp lệ');
-    const cur = await db.get('SELECT * FROM orders WHERE id = ? AND deleted_at IS NULL AND is_draft = 0', oid);
-    if (!cur) throw notFound('Không tìm thấy đơn');
-    if (cur.status !== status) {
-      await db.tx(async (t) => {
-        await t.run(`UPDATE orders SET status = ?, updated_at = ${NOW} WHERE id = ?`, status, oid);
-        await t.run('INSERT INTO order_events (order_id, status, by_user) VALUES (?, ?, ?)', oid, status, req.user.email);
-      });
-    }
+    // `from` = the status the user saw; if it changed meanwhile someone else already handled the order.
+    const from = STATUSES.includes(req.body?.from) ? req.body.from : null;
+    await db.tx(async (t) => {
+      const cur = await t.get('SELECT status FROM orders WHERE id = ? AND deleted_at IS NULL AND is_draft = 0 FOR UPDATE', oid);
+      if (!cur) throw notFound('Không tìm thấy đơn');
+      if (cur.status === status && !from) return;
+      if (cur.status === status || (from && cur.status !== from)) {
+        const ev = await t.get('SELECT by_user, created_at FROM order_events WHERE order_id = ? ORDER BY id DESC LIMIT 1', oid);
+        throw new HttpError(
+          409,
+          `${who(ev?.by_user, req.user.email)} đã chuyển đơn sang "${STATUS_VI[cur.status]}" lúc ${shortTime(ev?.created_at)}`,
+        );
+      }
+      await t.run(`UPDATE orders SET status = ?, updated_at = ${NOW} WHERE id = ?`, status, oid);
+      await t.run('INSERT INTO order_events (order_id, status, by_user) VALUES (?, ?, ?)', oid, status, req.user.email);
+    });
     res.json(await getOrder(oid));
   });
 
@@ -628,11 +660,11 @@ export function createApp({ db, storage, clientDist, geminiKey = '', fetchImpl =
     const r = await db.run('DELETE FROM orders WHERE id = ? AND deleted_at IS NOT NULL', oid);
     if (r.changes) imgs.forEach((i) => removeFile(i.path));
   }
-  app.delete('/api/orders/:id/purge', async (req, res) => {
+  app.delete('/api/orders/:id/purge', requireOwner, async (req, res) => {
     await purge(id(req.params.id));
     res.json({ ok: true });
   });
-  app.post('/api/trash/empty', async (req, res) => {
+  app.post('/api/trash/empty', requireOwner, async (req, res) => {
     for (const r of await db.all('SELECT id FROM orders WHERE deleted_at IS NOT NULL')) await purge(r.id);
     res.json({ ok: true });
   });
@@ -643,7 +675,19 @@ export function createApp({ db, storage, clientDist, geminiKey = '', fetchImpl =
     if ((await db.get('SELECT COUNT(*) AS n FROM order_images WHERE order_id = ?', oid)).n >= MAX_IMAGES)
       throw bad(`Tối đa ${MAX_IMAGES} ảnh mỗi đơn`);
     const file = await saveImage(req.body);
-    const r = await db.get('INSERT INTO order_images (order_id, path) VALUES (?, ?) RETURNING id', oid, file);
+    let r;
+    try {
+      // Re-check under a row lock so parallel uploads can't exceed the limit.
+      r = await db.tx(async (t) => {
+        if (!(await t.get('SELECT 1 FROM orders WHERE id = ? AND deleted_at IS NULL FOR UPDATE', oid))) throw notFound('Không tìm thấy đơn');
+        if ((await t.get('SELECT COUNT(*) AS n FROM order_images WHERE order_id = ?', oid)).n >= MAX_IMAGES)
+          throw bad(`Tối đa ${MAX_IMAGES} ảnh mỗi đơn`);
+        return t.get('INSERT INTO order_images (order_id, path) VALUES (?, ?) RETURNING id', oid, file);
+      });
+    } catch (e) {
+      removeFile(file);
+      throw e;
+    }
     res.status(201).json({ id: r.id, url: imageUrl(file) });
   });
   app.delete('/api/orders/:id/images/:imageId', async (req, res) => {

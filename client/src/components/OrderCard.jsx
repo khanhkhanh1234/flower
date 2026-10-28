@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import Icon from '../icons.jsx';
-import { fmtDate, vnd } from '../format.js';
+import { STATUS, fmtDate, vnd } from '../format.js';
 import { StatusPill } from './ui.jsx';
 
 export default function OrderCard({ order: o, showDate, to }) {
@@ -30,6 +30,11 @@ export default function OrderCard({ order: o, showDate, to }) {
           )}
         </div>
         {o.product_summary && <div className="order-desc">{o.product_summary}</div>}
+        {(o.status === 'making' || o.status === 'delivering') && o.status_by && (
+          <div className="order-addr">
+            <Icon name="users" size={13} /> {STATUS[o.status].label}: {o.status_by.split('@')[0]}
+          </div>
+        )}
         {o.address && (
           <div className="order-addr">
             <Icon name="pin" size={13} /> {o.address}

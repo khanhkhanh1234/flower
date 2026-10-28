@@ -16,7 +16,9 @@ export async function api(path, { method = 'GET', body, raw, type } = {}) {
   const data = (res.headers.get('content-type') || '').includes('json') ? await res.json() : null;
   if (!res.ok) {
     if (res.status === 401 && !path.startsWith('/auth/')) window.dispatchEvent(new Event('fm:unauthorized'));
-    throw new Error(data?.error || `Lỗi ${res.status}`);
+    const err = new Error(data?.error || `Lỗi ${res.status}`);
+    err.status = res.status;
+    throw err;
   }
   return data;
 }

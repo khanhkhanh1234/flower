@@ -98,6 +98,8 @@ CREATE TABLE IF NOT EXISTS orders (
   deleted_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_orders_delivery ON orders(delivery_date);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_by TEXT;
 
 CREATE TABLE IF NOT EXISTS order_items (
   id ${ID},
@@ -123,6 +125,7 @@ CREATE TABLE IF NOT EXISTS order_events (
   by_user TEXT,
   created_at TEXT NOT NULL DEFAULT ${NOW}
 );
+CREATE INDEX IF NOT EXISTS idx_events_order ON order_events(order_id);
 
 CREATE TABLE IF NOT EXISTS import_notes (
   date TEXT PRIMARY KEY,

@@ -1,4 +1,5 @@
 import { api } from '../api.js';
+import { useUser } from '../App.jsx';
 import Icon from '../icons.jsx';
 import { fmtDate, fmtDateTime, vnd } from '../format.js';
 import { Empty, ErrorBox, Loading, confirmAsk, useLoad, useToast } from '../components/ui.jsx';
@@ -6,6 +7,7 @@ import { Empty, ErrorBox, Loading, confirmAsk, useLoad, useToast } from '../comp
 export default function Trash() {
   const list = useLoad(() => api('/orders?trash=1'), []);
   const toast = useToast();
+  const isOwner = useUser().role === 'owner';
 
   const restore = async (o) => {
     await api(`/orders/${o.id}/restore`, { method: 'POST' });
@@ -29,13 +31,15 @@ export default function Trash() {
     <div className="page">
       <div className="page-head">
         <h1>Rác</h1>
-        {list.data?.length > 0 && (
+        {isOwner && list.data?.length > 0 && (
           <button type="button" className="btn btn-danger-ghost btn-sm ml-auto" onClick={empty}>
             Dọn sạch
           </button>
         )}
       </div>
-      <p className="hint">Đơn đã xóa nằm ở đây cho tới khi bạn xóa vĩnh viễn.</p>
+      <p className="hint">
+        {isOwner ? 'Đơn đã xóa nằm ở đây cho tới khi bạn xóa vĩnh viễn.' : 'Đơn đã xóa nằm ở đây. Chỉ chủ tiệm mới xóa vĩnh viễn được.'}
+      </p>
       <ErrorBox error={list.error} onRetry={list.reload} />
       {list.loading && !list.data ? (
         <Loading />
@@ -55,9 +59,11 @@ export default function Trash() {
               <button type="button" className="btn btn-soft btn-sm" onClick={() => restore(o)}>
                 <Icon name="restore" size={16} /> Khôi phục
               </button>
-              <button type="button" className="icon-btn" onClick={() => purge(o)} aria-label="Xóa vĩnh viễn">
-                <Icon name="trash" size={18} />
-              </button>
+              {isOwner && (
+                <button type="button" className="icon-btn" onClick={() => purge(o)} aria-label="Xóa vĩnh viễn">
+                  <Icon name="trash" size={18} />
+                </button>
+              )}
             </li>
           ))}
         </ul>

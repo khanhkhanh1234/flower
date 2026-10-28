@@ -304,3 +304,45 @@ test('owner can add staff login; staff cannot change settings', async () => {
   assert.equal((await api('GET', '/api/orders')).status, 200);
   cookie = ownerCookie;
 });
+
+test('conflicts: stale status/edit rejected with who did it; staff cannot purge', async () => {
+  const ownerCookie = cookie;
+  const o = (await api('POST', '/api/orders', { customer_name: 'Xung đột', delivery_date: '2026-11-01', product_summary: 'x', price: 100 })).body;
+  assert.equal(o.version, 0);
+  await api('POST', '/api/auth/login', { email: 'nv@shop.vn', password: 'matkhau123' });
+  const staffCookie = cookie;
+  // staff starts making it; owner's stale screen still shows "pending"
+  assert.equal((await api('POST', `/api/orders/${o.id}/status`, { status: 'making', from: 'pending' })).status, 200);
+  cookie = ownerCookie;
+  let r = await api('POST', `/api/orders/${o.id}/status`, { status: 'making', from: 'pending' });
+  assert.equal(r.status, 409);
+  assert.match(r.body.error, /nv@shop\.vn đã chuyển đơn sang "Đang làm"/);
+  r = await api('POST', `/api/orders/${o.id}/status`, { status: 'cancelled', from: 'pending' });
+  assert.equal(r.status, 409);
+  assert.equal((await api('GET', `/api/orders/${o.id}`)).body.events.length, 2);
+  // lost update: both load version 0, staff saves first
+  cookie = staffCookie;
+  assert.equal((await api('PUT', `/api/orders/${o.id}`, { ...o, price: 800, version: 0 })).body.version, 1);
+  cookie = ownerCookie;
+  r = await api('PUT', `/api/orders/${o.id}`, { ...o, note: 'owner', version: 0 });
+  assert.equal(r.status, 409);
+  assert.match(r.body.error, /nv@shop\.vn vừa sửa đơn/);
+  assert.equal((await api('GET', `/api/orders/${o.id}`)).body.price, 800);
+  // staff can trash but not purge
+  cookie = staffCookie;
+  await api('DELETE', `/api/orders/${o.id}`);
+  assert.equal((await api('DELETE', `/api/orders/${o.id}/purge`)).status, 403);
+  assert.equal((await api('POST', '/api/trash/empty')).status, 403);
+  cookie = ownerCookie;
+  await api('POST', `/api/orders/${o.id}/restore`);
+});
+
+test('rejects impossible dates/times; huge numbers and ids do not crash', async () => {
+  const b = { customer_name: 'Biên', product_summary: 'x' };
+  assert.equal((await api('POST', '/api/orders', { ...b, delivery_date: '2026-02-31' })).status, 400);
+  const r = await api('POST', '/api/orders', { ...b, delivery_date: '2028-02-29', delivery_time: '25:99', price: 3e9 });
+  assert.equal(r.status, 201);
+  assert.equal(r.body.delivery_time, '');
+  assert.equal(r.body.price, 1e9);
+  assert.equal((await api('GET', '/api/orders/99999999999')).status, 404);
+});

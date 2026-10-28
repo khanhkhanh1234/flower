@@ -25,10 +25,11 @@ export default function OrderDetail() {
   const setStatus = async (status) => {
     setBusy(true);
     try {
-      order.setData(await api(`/orders/${o.id}/status`, { method: 'POST', body: { status } }));
+      order.setData(await api(`/orders/${o.id}/status`, { method: 'POST', body: { status, from: o.status } }));
       toast(`Đã chuyển sang "${STATUS[status].label}"`);
     } catch (e) {
       toast(e.message, 'error');
+      if (e.status === 409) order.reload();
     } finally {
       setBusy(false);
     }
