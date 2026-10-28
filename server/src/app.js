@@ -22,6 +22,7 @@ export const STATUSES = ['pending', 'making', 'delivering', 'done', 'cancelled']
 const DEPOSIT = ['none', 'partial', 'full'];
 const MAX_IMAGES = 10;
 const DEFAULT_MODEL = 'gemini-flash-lite-latest';
+const BACKUP_MODEL = 'gemini-3.1-flash-lite';
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -803,8 +804,8 @@ export function createApp({ db, storage, clientDist, geminiKey = '', fetchImpl =
     let source = 'heuristic';
     let warning = '';
     if (apiKey) {
-      // Busy/slow models are common; fall back to the fast lite model (retried once) before giving up.
-      const models = [...(model !== DEFAULT_MODEL ? [model] : []), DEFAULT_MODEL, DEFAULT_MODEL];
+      // Busy/slow models are common and quotas are per model: fall back to a second fast model before giving up.
+      const models = [...new Set([model, DEFAULT_MODEL, BACKUP_MODEL])];
       for (const [i, m] of models.entries()) {
         try {
           raw = await geminiParse({
