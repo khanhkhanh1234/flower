@@ -269,8 +269,19 @@ export function buildReply(d) {
   return lines.join('\n');
 }
 
+const WEEKDAY = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+/** Next 8 days with Vietnamese weekday names so the model doesn't have to do calendar math. */
+function calendar(today) {
+  const base = new Date(`${today}T00:00:00Z`);
+  if (Number.isNaN(base.getTime())) return '';
+  return Array.from({ length: 8 }, (_, i) => {
+    const d = new Date(base.getTime() + i * 86400000);
+    return `${WEEKDAY[d.getUTCDay()]} = ${d.toISOString().slice(0, 10)}${i === 0 ? ' (hôm nay)' : i === 1 ? ' (mai)' : ''}`;
+  }).join('; ');
+}
+
 const PROMPT = (flowers, today) => `Bạn là trợ lý của tiệm hoa. Đọc tin nhắn/ảnh chụp cuộc trò chuyện với khách và trích xuất thông tin đơn hàng.
-Hôm nay là ${today}. Danh sách mẫu hoa của tiệm (tên - giá VNĐ):
+Hôm nay là ${today}. Lịch các ngày tới: ${calendar(today)}. Danh sách mẫu hoa của tiệm (tên - giá VNĐ):
 ${flowers.map((f) => `- ${f.name} - ${f.price}`).join('\n') || '(chưa có)'}
 
 Trả về DUY NHẤT JSON với các khóa:
