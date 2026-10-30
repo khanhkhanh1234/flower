@@ -1,15 +1,18 @@
-/* Floral Muse — mobile-first, pink theme */
+/* Tamellia Floral — mobile-first, charcoal + cream theme (matches the shop logo).
+   The --pink* names are kept for the brand accent so components stay unchanged. */
 :root {
-  --pink: #e8518a;
-  --pink-600: #d23a75;
-  --pink-50: #fff1f6;
-  --pink-100: #ffe1ec;
-  --pink-200: #fbc5d8;
-  --ink: #2b1f26;
-  --ink-2: #5d4b55;
-  --muted: #8f7d87;
-  --line: #f0e2e8;
-  --bg: #fbf6f8;
+  --pink: #2a241c;
+  --pink-600: #14110c;
+  --pink-50: #f8f2e2;
+  --pink-100: #f0e6c9;
+  --pink-200: #e2d3a6;
+  --gold: #9c7a3c;
+  --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --ink: #1f1a14;
+  --ink-2: #514839;
+  --muted: #8b8170;
+  --line: #ece4d0;
+  --bg: #fbf8f0;
   --card: #fff;
   --ok: #1f9d63;
   --ok-50: #e7f7ef;
@@ -23,7 +26,7 @@
   --error-50: #fdecec;
   --radius: 14px;
   --radius-sm: 10px;
-  --shadow: 0 1px 2px rgb(43 31 38 / 5%), 0 4px 14px rgb(43 31 38 / 5%);
+  --shadow: 0 1px 2px rgb(31 26 20 / 5%), 0 4px 14px rgb(31 26 20 / 6%);
   --nav-h: 64px;
   --top-h: 56px;
   color-scheme: light;
@@ -54,7 +57,9 @@ h3 {
   line-height: 1.25;
 }
 h1 {
-  font-size: 1.35rem;
+  font-family: var(--serif);
+  font-size: 1.6rem;
+  font-weight: 700;
 }
 h2 {
   font-size: 1.1rem;
@@ -110,7 +115,7 @@ textarea:focus {
 }
 input:disabled,
 select:disabled {
-  background: #f7f2f4;
+  background: #f5f1e7;
   color: var(--muted);
 }
 :focus-visible {
@@ -132,7 +137,7 @@ select:disabled {
   color: var(--ok);
 }
 .text-pink {
-  color: var(--pink);
+  color: var(--gold);
 }
 .text-warn {
   color: var(--warn);
@@ -200,20 +205,25 @@ select:disabled {
   border-bottom: 1px solid var(--line);
 }
 .brand {
+  flex: none;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  font-family: var(--serif);
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1.25rem;
+  letter-spacing: 0.14em;
   color: var(--ink);
 }
 .topbar-right {
   margin-left: auto;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 4px;
 }
 .user-email {
+  min-width: 0;
   color: var(--muted);
   font-size: 0.85rem;
   max-width: 40vw;
@@ -495,7 +505,7 @@ select:disabled {
   color: var(--ok);
 }
 .pill-cancelled {
-  background: #f1eef0;
+  background: #f2eee4;
   color: var(--muted);
 }
 
@@ -843,7 +853,7 @@ select:disabled {
   color: var(--muted);
 }
 .stat-pink {
-  background: linear-gradient(135deg, var(--pink), #f27aa6);
+  background: linear-gradient(135deg, var(--pink), #5a4a33);
   border-color: transparent;
   color: #fff;
 }
@@ -863,7 +873,7 @@ select:disabled {
   border-radius: 50%;
   background: var(--pink);
   color: #fff;
-  box-shadow: 0 8px 24px rgb(232 81 138 / 45%);
+  box-shadow: 0 8px 24px rgb(31 26 20 / 35%);
 }
 .fab:hover {
   background: var(--pink-600);
@@ -1304,10 +1314,10 @@ a.list-item:hover {
   padding: 14px 16px;
   border: 0;
   border-radius: var(--radius);
-  background: linear-gradient(120deg, #f06a9e, #b45cf0);
+  background: linear-gradient(120deg, #2a241c, #8a6c38);
   color: #fff;
   text-align: left;
-  box-shadow: 0 6px 20px rgb(232 81 138 / 30%);
+  box-shadow: 0 6px 20px rgb(31 26 20 / 25%);
 }
 .ai-banner span {
   flex: 1;
@@ -1639,7 +1649,7 @@ a.list-item:hover {
   height: 100%;
   min-width: 2px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #f27aa6, var(--pink));
+  background: linear-gradient(90deg, #c4a466, var(--gold));
 }
 .bar-value {
   font-weight: 600;
@@ -1676,8 +1686,7 @@ a.list-item:hover {
   display: grid;
   place-items: center;
   padding: 20px;
-  background: radial-gradient(circle at 20% 10%, var(--pink-100), transparent 50%),
-    radial-gradient(circle at 90% 90%, #f3e6ff, transparent 45%), var(--bg);
+  background: radial-gradient(circle at 50% 30%, #fffdf6, var(--pink-50) 70%);
 }
 .login-card {
   width: 100%;
@@ -1688,7 +1697,7 @@ a.list-item:hover {
   padding: 28px 24px;
   border-radius: 20px;
   background: #fff;
-  box-shadow: 0 20px 60px rgb(232 81 138 / 15%);
+  box-shadow: 0 20px 60px rgb(90 70 30 / 12%);
 }
 .login-brand {
   display: flex;
@@ -1700,4 +1709,8 @@ a.list-item:hover {
 }
 .login-brand p {
   color: var(--muted);
+}
+.login-brand img {
+  width: 220px;
+  height: auto;
 }

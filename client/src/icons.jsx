@@ -52,5 +52,5 @@ export default function Icon({ name, size = 20, className = '', ...rest }) {
 }
 
 export function Logo({ size = 34 }) {
-  return <img src="/favicon.svg" width={size} height={size} alt="" />;
+  return <img src="/logo-mark.png" width={size} height={size} alt="" />;
 }

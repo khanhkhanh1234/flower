@@ -33,6 +33,6 @@ const port = Number(env.PORT) || 3000;
 const host = env.HOST || '127.0.0.1';
 app.listen(port, host, () =>
   console.log(
-    `Floral Muse chạy tại http://${host}:${port} (DB: ${env.DATABASE_URL ? 'Postgres' : 'PGlite nội bộ'}, ảnh: ${useSupabaseStorage ? 'Supabase Storage' : 'ổ đĩa'})`,
+    `Tamellia chạy tại http://${host}:${port} (DB: ${env.DATABASE_URL ? 'Postgres' : 'PGlite nội bộ'}, ảnh: ${useSupabaseStorage ? 'Supabase Storage' : 'ổ đĩa'})`,
   ),
 );

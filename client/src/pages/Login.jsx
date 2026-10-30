@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { api } from '../api.js';
-import { Logo } from '../icons.jsx';
 import { Field } from '../components/ui.jsx';
 
 export default function Login({ needsSetup, onDone }) {
@@ -27,8 +26,7 @@ export default function Login({ needsSetup, onDone }) {
     <div className="login-page">
       <form className="login-card" onSubmit={submit}>
         <div className="login-brand">
-          <Logo size={56} />
-          <h1>Floral Muse</h1>
+          <img src="/logo.png" width="500" height="370" alt="Tamellia — Flower's shop by Tamquynh" />
           <p>{needsSetup ? 'Tạo tài khoản chủ tiệm để bắt đầu' : 'Đăng nhập để quản lý đơn hoa'}</p>
         </div>
         {error && <div className="alert alert-error">{error}</div>}

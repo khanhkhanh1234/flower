@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App.jsx';
 import { ToastProvider } from './components/ui.jsx';
 import ErrorBoundary, { reportError } from './components/ErrorBoundary.jsx';
+import '@fontsource/cormorant-garamond/700.css';
 import './styles.css';
 
 window.addEventListener('error', (e) => reportError('error', e.error || e.message));

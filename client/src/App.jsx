@@ -71,7 +71,7 @@ export default function App() {
         <header className="topbar">
           <NavLink to="/" className="brand">
             <Logo />
-            <span>Floral Muse</span>
+            <span>TAMELLIA</span>
           </NavLink>
           <div className="topbar-right">
             <span className="user-email">{auth.user.email}</span>
