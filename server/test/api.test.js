@@ -119,6 +119,7 @@ test('heuristic parser reads the sample chat', () => {
 
 test('requires login', async () => {
   assert.equal((await api('GET', '/api/orders', undefined, { noCookie: true })).status, 401);
+  assert.equal((await api('POST', '/api/client-errors', { message: 'x' }, { noCookie: true })).status, 401);
   assert.equal((await api('GET', '/api/auth/state')).body.needsSetup, true);
 });
 
@@ -133,6 +134,11 @@ test('setup, login, wrong password', async () => {
   assert.equal(r.status, 401);
   r = await api('GET', '/api/auth/me');
   assert.equal(r.body.user.role, 'owner');
+  assert.equal((await api('POST', '/api/client-errors', { kind: 'render', message: 'boom', stack: 'x'.repeat(9000) })).status, 204);
+  const logged = (await api('GET', '/api/client-errors')).body;
+  assert.equal(logged[0].message, 'boom');
+  assert.equal(logged[0].stack.length, 4000);
+  assert.equal(logged[0].by_user, 'owner@shop.vn');
 });
 
 test('rejects cross-origin writes', async () => {

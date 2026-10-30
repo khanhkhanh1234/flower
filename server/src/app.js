@@ -214,6 +214,27 @@ export function createApp({ db, storage, clientDist, geminiKey = '', fetchImpl =
     res.json({ ok: true });
   });
 
+  // ---------- client crash reports ----------
+  const errorLimiter = rateLimiter(20, 15 * 60 * 1000);
+  app.post('/api/client-errors', async (req, res) => {
+    if (!errorLimiter(String(req.user.id))) return res.status(204).end();
+    const b = req.body || {};
+    await db.run(
+      'INSERT INTO client_errors (by_user, kind, message, stack, url, ua) VALUES (?, ?, ?, ?, ?, ?)',
+      req.user.email,
+      str(b.kind, 30),
+      str(b.message, 1000),
+      str(b.stack, 4000),
+      str(b.url, 300),
+      str(req.get('user-agent'), 300),
+    );
+    await db.run('DELETE FROM client_errors WHERE id <= (SELECT MAX(id) - 500 FROM client_errors)');
+    res.status(204).end();
+  });
+  app.get('/api/client-errors', requireOwner, async (req, res) => {
+    res.json(await db.all('SELECT * FROM client_errors ORDER BY id DESC LIMIT 100'));
+  });
+
   // ---------- settings ----------
   app.get('/api/settings', async (req, res) => {
     res.json({
