@@ -5,6 +5,8 @@ import path from 'node:path';
 export const FILE_RE = /^[a-f0-9]{32}\.(jpg|png|webp)$/;
 const TYPES = { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
 export const contentType = (file) => TYPES[file.split('.').pop()] || 'application/octet-stream';
+/** Storage name of the small WebP thumbnail for an uploaded file. */
+export const thumbName = (file) => `${file.split('.')[0]}_s.webp`;
 
 /** Store images on local disk (dev / self-hosted VM). */
 export function diskStorage(dir) {

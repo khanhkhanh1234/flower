@@ -196,8 +196,7 @@ select:disabled {
   align-items: center;
   gap: 10px;
   padding: 0 12px;
-  background: rgb(255 255 255 / 92%);
-  backdrop-filter: blur(8px);
+  background: #fff;
   border-bottom: 1px solid var(--line);
 }
 .brand {
@@ -1280,8 +1279,7 @@ a.list-item:hover {
   gap: 10px;
   margin: 0 -14px;
   padding: 12px 14px;
-  background: rgb(255 255 255 / 94%);
-  backdrop-filter: blur(8px);
+  background: #fff;
   border-top: 1px solid var(--line);
 }
 .action-bar .btn {

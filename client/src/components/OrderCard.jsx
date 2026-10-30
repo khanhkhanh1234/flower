@@ -2,12 +2,13 @@ import { Link } from 'react-router-dom';
 import Icon from '../icons.jsx';
 import { STATUS, fmtDate, vnd } from '../format.js';
 import { StatusPill } from './ui.jsx';
+import { small } from '../image.js';
 
 export default function OrderCard({ order: o, showDate, to }) {
   return (
     <Link to={to || `/orders/${o.id}`} className={`order-card ${o.status === 'cancelled' ? 'is-cancelled' : ''}`}>
       <div className="order-thumb">
-        {o.thumb_url ? <img src={o.thumb_url} alt="" loading="lazy" /> : <Icon name="flower" size={26} />}
+        {o.thumb_url ? <img src={small(o.thumb_url)} alt="" loading="lazy" /> : <Icon name="flower" size={26} />}
       </div>
       <div className="order-main">
         <div className="order-top">

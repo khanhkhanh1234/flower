@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api, uploadImage } from '../api.js';
 import Icon from '../icons.jsx';
 import { DEPOSIT, PLATFORMS, isoDate, vnd } from '../format.js';
-import { dataURLToBlob } from '../image.js';
+import { dataURLToBlob, small } from '../image.js';
 import AiModal from '../components/AiModal.jsx';
 import PaymentSummary from '../components/PaymentSummary.jsx';
 import { CustomerPicker, FlowerPicker, ImageDrop } from '../components/pickers.jsx';
@@ -337,7 +337,7 @@ export default function OrderForm() {
             <ul className="items">
               {f.items.map((it, k) => (
                 <li key={k} className="item-row">
-                  <span className="thumb-sm">{it.image_url ? <img src={it.image_url} alt="" /> : <Icon name="flower" size={16} />}</span>
+                  <span className="thumb-sm">{it.image_url ? <img src={small(it.image_url)} alt="" /> : <Icon name="flower" size={16} />}</span>
                   <div className="item-info">
                     <b>{it.name}</b>
                     <MoneyInput value={it.unit_price} onChange={(v) => updateItem(k, { unit_price: v })} aria-label={`Đơn giá ${it.name}`} />

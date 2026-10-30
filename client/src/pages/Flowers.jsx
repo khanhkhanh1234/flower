@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { api, uploadImage } from '../api.js';
 import Icon from '../icons.jsx';
 import { vnd } from '../format.js';
-import { compressImage } from '../image.js';
+import { compressImage, small } from '../image.js';
 import { fold } from '../components/pickers.jsx';
 import { Empty, ErrorBox, Field, Loading, Modal, MoneyInput, SearchInput, confirmAsk, useLoad, useToast } from '../components/ui.jsx';
 
@@ -105,7 +105,7 @@ export default function Flowers() {
         <div className="flower-grid">
           {shown.map((f) => (
             <button type="button" key={f.id} className="flower-card" onClick={() => setParams({ id: String(f.id) })}>
-              <div className="flower-img">{f.image_url ? <img src={f.image_url} alt="" loading="lazy" /> : <Icon name="flower" size={34} />}</div>
+              <div className="flower-img">{f.image_url ? <img src={small(f.image_url)} alt="" loading="lazy" /> : <Icon name="flower" size={34} />}</div>
               <b>{f.name}</b>
               <span className="text-pink">{vnd(f.price)}</span>
             </button>

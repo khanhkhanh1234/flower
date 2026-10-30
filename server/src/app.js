@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { NOW } from './db.js';
-import { FILE_RE, contentType } from './storage.js';
+import sharp from 'sharp';
+import { FILE_RE, contentType, thumbName } from './storage.js';
 import {
   hashPassword,
   verifyPassword,
@@ -21,6 +22,10 @@ import { calcTotals, money } from './calc.js';
 export const STATUSES = ['pending', 'making', 'delivering', 'done', 'cancelled'];
 const DEPOSIT = ['none', 'partial', 'full'];
 const MAX_IMAGES = 10;
+const THUMB_PX = 320;
+// Render Free has 512MB RAM: keep libvips lean.
+sharp.cache(false);
+sharp.concurrency(1);
 const DEFAULT_MODEL = 'gemini-flash-lite-latest';
 const BACKUP_MODEL = 'gemini-3.1-flash-lite';
 
@@ -157,11 +162,32 @@ export function createApp({ db, storage, clientDist, geminiKey = '', fetchImpl =
 
   // Everything below requires login.
   app.use('/api', (req, res, next) => (req.path === '/ai/parse' ? next() : auth(req, res, next)));
+  // Small list thumbnails: made once from the original, then kept in storage next to it.
+  const thumbJobs = new Map();
+  async function getThumb(file) {
+    const name = thumbName(file);
+    const cached = await storage.get(name);
+    if (cached) return cached;
+    if (thumbJobs.has(name)) return thumbJobs.get(name);
+    const job = (async () => {
+      const orig = await storage.get(file);
+      if (!orig) return null;
+      const buf = await sharp(orig).rotate().resize(THUMB_PX, THUMB_PX, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 72 }).toBuffer();
+      await storage.put(name, buf).catch((e) => console.error('Không lưu được thumbnail', name, e.message));
+      return buf;
+    })().finally(() => thumbJobs.delete(name));
+    thumbJobs.set(name, job);
+    return job;
+  }
   app.get('/uploads/:file', auth, async (req, res) => {
     const file = req.params.file;
-    const buf = FILE_RE.test(file) ? await storage.get(file) : null;
+    if (!FILE_RE.test(file)) throw notFound();
+    const small = req.query.s === '1';
+    const buf = small ? await getThumb(file) : await storage.get(file);
     if (!buf) throw notFound();
-    res.set({ 'Content-Type': contentType(file), 'Cache-Control': 'private, max-age=604800, immutable' }).send(buf);
+    res
+      .set({ 'Content-Type': small ? 'image/webp' : contentType(file), 'Cache-Control': 'private, max-age=604800, immutable' })
+      .send(buf);
   });
 
   // ---------- users (owner manages staff logins) ----------
@@ -217,7 +243,8 @@ export function createApp({ db, storage, clientDist, geminiKey = '', fetchImpl =
   }
   function removeFile(file) {
     if (!file || !FILE_RE.test(file)) return;
-    storage.remove(file).catch((e) => console.error('Không xóa được ảnh', file, e.message));
+    for (const f of [file, thumbName(file)])
+      storage.remove(f).catch((e) => console.error('Không xóa được ảnh', f, e.message));
   }
 
   // ---------- flowers ----------
@@ -836,6 +863,8 @@ export function createApp({ db, storage, clientDist, geminiKey = '', fetchImpl =
   // ---------- errors & SPA ----------
   app.use('/api', (req, res) => res.status(404).json({ error: 'Không tìm thấy API' }));
   if (clientDist && fs.existsSync(path.join(clientDist, 'index.html'))) {
+    // Vite puts content-hashed files in /assets: safe to cache forever.
+    app.use('/assets', express.static(path.join(clientDist, 'assets'), { maxAge: '1y', immutable: true }));
     app.use(express.static(clientDist, { index: false, maxAge: '1h' }));
     app.get('/{*splat}', (req, res) => res.sendFile(path.join(clientDist, 'index.html')));
   }

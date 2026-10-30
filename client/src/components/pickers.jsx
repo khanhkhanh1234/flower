@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api.js';
 import Icon from '../icons.jsx';
 import { vnd } from '../format.js';
-import { compressImage, imagesFromTransfer } from '../image.js';
+import { compressImage, imagesFromTransfer, small } from '../image.js';
 import { Loading, Modal, SearchInput, useDebounced, useLoad, useToast } from './ui.jsx';
 
 export const fold = (s) =>
@@ -88,7 +88,7 @@ export function FlowerPicker({ flowers, onPick, onCreated }) {
             >
               {o.f ? (
                 <>
-                  <span className="thumb-sm">{o.f.image_url ? <img src={o.f.image_url} alt="" /> : <Icon name="flower" size={16} />}</span>
+                  <span className="thumb-sm">{o.f.image_url ? <img src={small(o.f.image_url)} alt="" loading="lazy" /> : <Icon name="flower" size={16} />}</span>
                   <span className="grow">{o.f.name}</span>
                   <span className="muted small">{vnd(o.f.price)}</span>
                 </>
@@ -213,7 +213,7 @@ export function ImageDrop({ images, max = 10, onAdd, onRemove, pasteTarget = tru
         <div className="thumbs">
           {images.map((img) => (
             <div key={img.key} className="thumb">
-              <img src={img.url} alt="" />
+              <img src={small(img.url)} alt="" />
               <button type="button" className="thumb-x" onClick={() => onRemove(img.key)} aria-label="Xóa ảnh">
                 <Icon name="x" size={14} />
               </button>

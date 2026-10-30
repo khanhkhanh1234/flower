@@ -200,10 +200,18 @@ test('order images: upload, limit, auth-protected file', async () => {
   assert.equal(up.status, 201);
   assert.equal((await fetch(base + up.body.url)).status, 401);
   assert.equal((await fetch(base + up.body.url, { headers: { cookie } })).status, 200);
+  const [t1, t2] = await Promise.all([1, 2].map(() => fetch(`${base}${up.body.url}?s=1`, { headers: { cookie } })));
+  assert.equal(t1.headers.get('content-type'), 'image/webp');
+  assert.equal(t2.status, 200);
+  assert.equal((await fetch(`${base}${up.body.url}?s=1`)).status, 401);
+  const tfile = path.join(tmp, 'up', up.body.url.split('/').pop().replace('.png', '_s.webp'));
+  assert.ok(fs.existsSync(tfile), 'thumbnail cached in storage');
   for (let i = 0; i < 9; i++) await api('POST', `/api/orders/${order.id}/images`, undefined, { raw: PNG, type: 'image/png' });
   assert.equal((await api('POST', `/api/orders/${order.id}/images`, undefined, { raw: PNG, type: 'image/png' })).status, 400);
   const del = await api('DELETE', `/api/orders/${order.id}/images/${up.body.id}`);
   assert.equal(del.status, 200);
+  await new Promise((r) => setTimeout(r, 50));
+  assert.ok(!fs.existsSync(tfile), 'thumbnail removed with the image');
 });
 
 test('status flow, day stats, reports', async () => {

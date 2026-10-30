@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { api, uploadImage } from '../api.js';
 import Icon from '../icons.jsx';
 import { FLOW, STATUS, fmtDate, fmtDateTime, vnd } from '../format.js';
-import { compressImage } from '../image.js';
+import { compressImage, small } from '../image.js';
 import PaymentSummary from '../components/PaymentSummary.jsx';
 import { ErrorBox, Loading, Modal, StatusPill, confirmAsk, useLoad, useToast } from '../components/ui.jsx';
 
@@ -134,7 +134,7 @@ export default function OrderDetail() {
         {o.product_summary && <p className="pre">{o.product_summary}</p>}
         {o.items.map((it) => (
           <div key={it.id} className="item-row">
-            <span className="thumb-sm">{it.image_url ? <img src={it.image_url} alt="" /> : <Icon name="flower" size={16} />}</span>
+            <span className="thumb-sm">{it.image_url ? <img src={small(it.image_url)} alt="" /> : <Icon name="flower" size={16} />}</span>
             <div className="item-info">
               <b>
                 {it.name} × {it.qty}
@@ -208,7 +208,7 @@ export default function OrderDetail() {
         <div className="thumbs thumbs-lg">
           {o.images.map((img) => (
             <button type="button" key={img.id} className="thumb" onClick={() => setViewer(img)}>
-              <img src={img.url} alt="" loading="lazy" />
+              <img src={small(img.url)} alt="" loading="lazy" />
             </button>
           ))}
           {o.images.length < MAX_IMAGES && (
