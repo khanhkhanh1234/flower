@@ -16,7 +16,10 @@ export default function AiModal({ onClose, onFill }) {
   const toast = useToast();
   const settings = useLoad(() => api('/settings'), []);
 
-  useEffect(() => endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), [msgs, busy]);
+  // Braces matter: newer Chrome returns a Promise from scrollIntoView, and React would call it as cleanup.
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [msgs, busy]);
 
   const addFiles = async (files) => {
     const urls = [];
