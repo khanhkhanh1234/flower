@@ -186,7 +186,16 @@ async function openPostgres(url) {
   const isSupabase = /\.supabase\.(com|co)$/.test(u.hostname);
   const ca = readCa(process.env.DATABASE_CA || (isSupabase ? fileURLToPath(new URL('../certs/supabase-ca.crt', import.meta.url)) : ''));
   const ssl = process.env.DATABASE_SSL === 'off' ? false : { rejectUnauthorized: true, ...(ca ? { ca } : {}) };
-  const pool = new pg.Pool({ connectionString: u.toString(), ssl, max: 5, idleTimeoutMillis: 30000 });
+  // Timeouts: a dropped/stuck connection must fail fast instead of hanging every request.
+  const pool = new pg.Pool({
+    connectionString: u.toString(),
+    ssl,
+    max: 5,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
+    query_timeout: 25000,
+    keepAlive: true,
+  });
   pool.on('error', (e) => console.error('Lỗi kết nối DB:', e.message));
   const norm = (r) => ({ rows: r.rows, changes: r.rowCount ?? 0 });
   await pool.query(SCHEMA);
